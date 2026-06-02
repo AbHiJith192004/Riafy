@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expenso | Personal Finance Journal</title>
+    <meta name="theme-color" content="#101010" />
+    <link rel="icon" type="image/png" href="assets/app-icon.png" />
+    <link rel="apple-touch-icon" href="assets/app-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <nav class="top-nav" aria-label="App navigation">
+        <a class="brand" href="/" aria-label="spent home">
+          <img class="brand-icon" src="assets/app-icon.png" alt="" />
+          <span>Expenso</span>
+        </a>
+        <time id="currentDate" class="nav-date"></time>
+      </nav>
+
+      <main class="journal-layout">
+        <aside class="sidebar" aria-label="Summary and entry form">
+          <section class="journal-card summary-card" aria-labelledby="summaryTitle">
+            <div class="summary-heading">
+              <h1 id="summaryTitle">June</h1>
+              <span id="summaryYear">2026</span>
+            </div>
+
+            <div class="total-block">
+              <span class="card-chip" aria-hidden="true"></span>
+              <span class="card-lines" aria-hidden="true"></span>
+              <strong id="summaryTotal">&#8377;0.00</strong>
+              <span>spent this month</span>
+            </div>
+
+            <div id="summaryBreakdown" class="summary-breakdown"></div>
+          </section>
+
+          <section id="formCard" class="journal-card form-card" aria-labelledby="formTitle">
+            <div class="section-heading">
+              <span class="section-kicker">Journal Entry</span>
+              <h2 id="formTitle">Add Entry</h2>
+            </div>
+
+            <form id="expenseForm" novalidate>
+              <div class="field">
+                <label for="title">Title</label>
+                <input id="title" name="title" type="text" autocomplete="off" maxlength="120" placeholder="morning coffee, rent, train ticket" />
+                <p class="field-error" data-error-for="title"></p>
+              </div>
+
+              <div class="field amount-field">
+                <label for="amount">Amount</label>
+                <div class="amount-input">
+                  <span aria-hidden="true">&#8377;</span>
+                  <input id="amount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" />
+                </div>
+                <p class="field-error" data-error-for="amount"></p>
+              </div>
+
+              <div class="field">
+                <label>Category</label>
+                <input id="category" name="category" type="hidden" />
+                <div id="categoryPills" class="category-pills" role="radiogroup" aria-label="Choose category"></div>
+                <p class="field-error" data-error-for="category"></p>
+              </div>
+
+              <div class="field">
+                <label for="date">Date</label>
+                <input id="date" name="date" type="date" />
+                <p class="field-error" data-error-for="date"></p>
+              </div>
+
+              <div class="field">
+                <label for="note">Note</label>
+                <textarea id="note" name="note" rows="3" maxlength="220" placeholder="anything worth remembering..."></textarea>
+                <p class="field-error" data-error-for="note"></p>
+              </div>
+
+              <div class="field receipt-field">
+                <label for="receiptImage">Invoice or bill</label>
+                <input id="receiptImage" class="receipt-input" name="receiptImage" type="file" accept="image/png,image/jpeg,image/webp" capture="environment" />
+                <div class="receipt-control">
+                  <label class="receipt-picker" for="receiptImage">
+                    <span class="receipt-icon" aria-hidden="true"></span>
+                    <span>
+                      <strong>Add bill image</strong>
+                      <small>Camera or gallery</small>
+                    </span>
+                  </label>
+                  <div id="receiptPreview" class="receipt-preview is-hidden"></div>
+                </div>
+                <p class="field-error" data-error-for="receipt_image"></p>
+              </div>
+
+              <button id="submitButton" class="btn btn-primary" type="submit">Add Entry</button>
+              <button id="cancelEditButton" class="btn btn-text is-hidden" type="button">Cancel edit</button>
+            </form>
+          </section>
+        </aside>
+
+        <section class="main-panel" aria-label="Expense entries">
+          <section class="filter-card" aria-label="Filters">
+            <button id="filterToggle" class="btn btn-filter" type="button" aria-expanded="false" aria-controls="filtersForm">
+              Filter entries
+            </button>
+
+            <form id="filtersForm" class="filters-form" novalidate>
+              <span class="filter-label">Filter</span>
+              <input id="filterCategory" name="category" type="hidden" />
+              <div id="filterCategoryPills" class="category-pills filter-pills" role="radiogroup" aria-label="Filter by category"></div>
+
+              <div class="date-range">
+                <input id="filterFrom" name="from" type="date" aria-label="From date" />
+                <span aria-hidden="true">-&gt;</span>
+                <input id="filterTo" name="to" type="date" aria-label="To date" />
+              </div>
+
+              <label class="search-box" for="filterTitle">
+                <span aria-hidden="true">⌕</span>
+                <input id="filterTitle" name="title" type="search" autocomplete="off" placeholder="search title" />
+              </label>
+
+              <button id="clearFiltersButton" class="clear-link is-hidden" type="button">x clear</button>
+              <p id="filterHint" class="filter-hint" role="alert"></p>
+            </form>
+          </section>
+
+          <div class="list-header">
+            <div>
+              <span class="section-kicker">Entries</span>
+              <h2>Money notes</h2>
+            </div>
+            <span id="expenseCount" class="count-pill">0 items</span>
+          </div>
+
+          <div id="expenseList" class="expense-list" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+    <section id="tourOverlay" class="tour-overlay is-hidden" aria-modal="true" role="dialog" aria-labelledby="tourTitle">
+      <div class="tour-card">
+        <span id="tourStepCount" class="tour-count">1 of 4</span>
+        <h2 id="tourTitle">Welcome to Expenso</h2>
+        <p id="tourText">Track daily spending, save receipts, and review the month from one warm little wallet.</p>
+        <div class="tour-actions">
+          <button id="tourSkip" class="btn btn-text" type="button">Skip</button>
+          <button id="tourNext" class="btn btn-primary" type="button">Next</button>
+        </div>
+      </div>
+    </section>
+    <script src="app.js"></script>
+  </body>
+</html>

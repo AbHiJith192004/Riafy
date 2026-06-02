@@ -1,5 +1,5 @@
 const { CATEGORIES } = require('../config/categories');
-const { isValidDate, todayIsoLocal } = require('../utils/dateUtils');
+const { isFutureDate, isValidDate, todayIsoLocal } = require('../utils/dateUtils');
 
 function normalizeExpensePayload(body = {}) {
   const errors = {};
@@ -25,6 +25,8 @@ function normalizeExpensePayload(body = {}) {
 
   if (!isValidDate(date)) {
     errors.date = 'Use a valid date in YYYY-MM-DD format.';
+  } else if (isFutureDate(date)) {
+    errors.date = 'Future expenses are not supported yet. Use today or an earlier date.';
   }
 
   if (receiptImage && !/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(receiptImage)) {

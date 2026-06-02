@@ -23,6 +23,10 @@ function todayIsoLocal() {
   return `${year}-${month}-${day}`;
 }
 
+function isFutureDate(value) {
+  return isValidDate(value) && value > todayIsoLocal();
+}
+
 function currentMonthInfo() {
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -36,6 +40,7 @@ function currentMonthInfo() {
 
 module.exports = {
   currentMonthInfo,
+  isFutureDate,
   isValidDate,
   todayIsoLocal
 };

@@ -5,6 +5,7 @@ Expenso is a local personal expense tracker built with Node.js, Express, SQLite,
 ## How to Run
 
 ```bash
+cd .../Riafy/Expenso
 npm install
 node server.js
 ```
@@ -97,10 +98,11 @@ Example:
 
 ## What's Skipped
 
-- User accounts and authentication.
-- Multi-currency support.
-- Data export/import.
-- Recurring expense automation.
+- User accounts and authentication: Expenso is currently built as a local single-user tracker. There are no login screens, user roles, password storage, or per-user records yet.
+- Planned or future expenses: the `expenses` table is treated as money already spent, so future dates are blocked to prevent accidental entries. A future version could add a separate `planned_expenses` or budgets feature for bills due later.
+- Multi-currency support: all formatting and totals currently assume Indian rupees. Adding multiple currencies would require currency fields, exchange-rate handling, and summary rules.
+- Data export/import: there is no CSV, PDF, Excel, or backup restore flow yet. Data stays in the local SQLite database.
+- Recurring expense automation: rent, subscriptions, and bill reminders are not generated automatically. Every expense must be added manually.
 
 ## Known Rough Edges
 

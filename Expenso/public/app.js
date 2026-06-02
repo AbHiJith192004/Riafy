@@ -36,20 +36,36 @@ const state = {
 
 const TOUR_STEPS = [
   {
-    title: 'Welcome to Expenso',
-    text: 'Track daily spending, save receipts, and review the month from one warm little wallet.'
+    target: '.summary-card',
+    title: 'Monthly summary',
+    text: 'This wallet card shows how much you spent this month and which categories are taking the most space.'
   },
   {
+    target: '#addEntryButton',
     title: 'Add an entry',
-    text: 'Write a title, amount, date, category, and an optional note whenever money moves.'
+    text: 'Tap this plus button whenever you want to record money that has already been spent.'
   },
   {
-    title: 'Attach bills',
-    text: 'Use your camera or upload a bill image, then keep the receipt with that entry.'
+    target: '#title',
+    openEntryPanel: true,
+    title: 'Fill the entry panel',
+    text: 'Add the title, amount, category, date, and note inside this panel. Future dates are blocked to keep expenses honest.'
   },
   {
-    title: 'Review your month',
-    text: 'The wallet card and category bars update after every add, edit, or delete.'
+    target: '.receipt-picker',
+    openEntryPanel: true,
+    title: 'Save bills and invoices',
+    text: 'Attach a bill from camera or gallery. Expenso scans readable text and can suggest amount, date, or title.'
+  },
+  {
+    target: '.filter-card',
+    title: 'Filter quickly',
+    text: 'Use categories, dates, and search to narrow the list without changing the saved data.'
+  },
+  {
+    target: '.list-header',
+    title: 'Review your notes',
+    text: 'Every add, edit, or delete re-fetches from the server so the list and summary stay in sync.'
   }
 ];
 
@@ -87,6 +103,8 @@ const els = {
   expenseCount: document.querySelector('#expenseCount'),
   toastRoot: document.querySelector('#toastRoot'),
   tourOverlay: document.querySelector('#tourOverlay'),
+  tourSpotlight: document.querySelector('#tourSpotlight'),
+  tourCard: document.querySelector('#tourCard'),
   tourStepCount: document.querySelector('#tourStepCount'),
   tourTitle: document.querySelector('#tourTitle'),
   tourText: document.querySelector('#tourText'),
@@ -578,15 +596,20 @@ function trapFocus(event, container) {
   }
 }
 
-function openEntryPanel() {
-  state.entryPanelLastFocus = document.activeElement;
+function openEntryPanel({ focusTitle = true, rememberFocus = true } = {}) {
+  if (rememberFocus) {
+    state.entryPanelLastFocus = document.activeElement;
+  }
   els.formCard.inert = false;
   document.body.classList.add('is-entry-panel-open');
   els.entryPanelBackdrop.classList.remove('is-hidden');
   els.formCard.setAttribute('aria-hidden', 'false');
-  window.setTimeout(() => {
-    els.expenseForm.elements.title.focus({ preventScroll: true });
-  }, 80);
+
+  if (focusTitle) {
+    window.setTimeout(() => {
+      els.expenseForm.elements.title.focus({ preventScroll: true });
+    }, 80);
+  }
 }
 
 function closeEntryPanel({ restoreFocus = true } = {}) {
@@ -667,6 +690,8 @@ function validateForm() {
 
   if (!form.date.value) {
     errors.date = 'Choose a date.';
+  } else if (form.date.value > todayIso()) {
+    errors.date = 'Future expenses are not supported yet. Use today or an earlier date.';
   }
 
   return errors;
@@ -788,10 +813,90 @@ function setSubmitLoading(isLoading) {
   els.submitButton.textContent = state.editingId ? 'Update Entry' : 'Add Entry';
 }
 
+function getTourTarget(step) {
+  return document.querySelector(step.target);
+}
+
+function updateTourSpotlight() {
+  if (els.tourOverlay.classList.contains('is-hidden')) {
+    return;
+  }
+
+  const step = TOUR_STEPS[state.tourStep];
+  const target = getTourTarget(step);
+
+  if (!target) {
+    return;
+  }
+
+  const padding = window.innerWidth <= 480 ? 8 : 12;
+  const rect = target.getBoundingClientRect();
+  const left = Math.max(12, rect.left - padding);
+  const top = Math.max(12, rect.top - padding);
+  const width = Math.min(window.innerWidth - left - 12, rect.width + padding * 2);
+  const height = Math.min(window.innerHeight - top - 12, rect.height + padding * 2);
+
+  els.tourSpotlight.style.left = `${left}px`;
+  els.tourSpotlight.style.top = `${top}px`;
+  els.tourSpotlight.style.width = `${Math.max(44, width)}px`;
+  els.tourSpotlight.style.height = `${Math.max(44, height)}px`;
+
+  const cardWidth = Math.min(420, window.innerWidth - 32);
+  const cardHeight = els.tourCard.offsetHeight || 230;
+  const gap = 18;
+  let cardTop = rect.bottom + gap;
+  let cardLeft = Math.min(Math.max(16, rect.left), window.innerWidth - cardWidth - 16);
+
+  if (cardTop + cardHeight > window.innerHeight - 16) {
+    cardTop = rect.top - cardHeight - gap;
+  }
+
+  if (cardTop < 16) {
+    cardTop = Math.min(window.innerHeight - cardHeight - 16, 16);
+  }
+
+  if (window.innerWidth <= 480) {
+    cardLeft = 16;
+    const belowTop = rect.bottom + 12;
+    const aboveTop = rect.top - cardHeight - 12;
+
+    if (belowTop + cardHeight <= window.innerHeight - 16) {
+      cardTop = belowTop;
+    } else if (aboveTop >= 16) {
+      cardTop = aboveTop;
+    } else if (rect.top < window.innerHeight / 2) {
+      cardTop = Math.max(16, window.innerHeight - cardHeight - 16);
+    } else {
+      cardTop = 16;
+    }
+  }
+
+  els.tourCard.style.setProperty('--tour-card-left', `${cardLeft}px`);
+  els.tourCard.style.setProperty('--tour-card-top', `${cardTop}px`);
+}
+
+function prepareTourStep() {
+  const step = TOUR_STEPS[state.tourStep];
+
+  if (step.openEntryPanel) {
+    openEntryPanel({ focusTitle: false, rememberFocus: false });
+  } else if (document.body.classList.contains('is-entry-panel-open')) {
+    closeEntryPanel({ restoreFocus: false });
+  }
+
+  const target = getTourTarget(step);
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }
+
+  window.setTimeout(updateTourSpotlight, 260);
+}
+
 function completeTour() {
   localStorage.setItem('expensoTourSeen', 'true');
   els.tourOverlay.classList.add('is-hidden');
   document.body.classList.remove('is-tour-open');
+  closeEntryPanel({ restoreFocus: false });
 
   if (state.tourLastFocus && document.contains(state.tourLastFocus)) {
     state.tourLastFocus.focus({ preventScroll: true });
@@ -804,6 +909,7 @@ function renderTourStep() {
   els.tourTitle.textContent = step.title;
   els.tourText.textContent = step.text;
   els.tourNext.textContent = state.tourStep === TOUR_STEPS.length - 1 ? 'Start tracking' : 'Next';
+  prepareTourStep();
 }
 
 function maybeShowTour() {
@@ -1109,6 +1215,9 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+window.addEventListener('resize', updateTourSpotlight);
+window.addEventListener('scroll', updateTourSpotlight, { passive: true });
+
 document.addEventListener('DOMContentLoaded', async () => {
   const now = new Date();
   els.currentDate.textContent = now.toLocaleDateString('en-IN', {
@@ -1118,6 +1227,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   els.currentDate.setAttribute('datetime', now.toISOString());
   els.expenseForm.elements.date.value = todayIso();
+  els.expenseForm.elements.date.max = todayIso();
   els.formCard.inert = true;
   renderCategoryPills(els.categoryPills, '', 'form');
   renderCategoryPills(els.filterCategoryPills, '', 'filter');

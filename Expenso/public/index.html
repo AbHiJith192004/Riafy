@@ -48,8 +48,9 @@
         </a>
         <div class="nav-actions">
           <time id="currentDate" class="nav-date"></time>
-          <button id="addEntryButton" class="add-entry-button" type="button" aria-label="Add new entry">
+          <button id="addEntryButton" class="add-entry-button" type="button">
             <span aria-hidden="true">+</span>
+            <span>Add Expense</span>
           </button>
         </div>
       </nav>
@@ -190,7 +191,8 @@
     <div id="entryPanelBackdrop" class="entry-panel-backdrop is-hidden" aria-hidden="true"></div>
     <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
     <section id="tourOverlay" class="tour-overlay is-hidden" aria-modal="true" role="dialog" aria-labelledby="tourTitle">
-      <div class="tour-card">
+      <div id="tourSpotlight" class="tour-spotlight" aria-hidden="true"></div>
+      <div id="tourCard" class="tour-card">
         <span id="tourStepCount" class="tour-count">1 of 4</span>
         <h2 id="tourTitle">Welcome to Expenso</h2>
         <p id="tourText">Track daily spending, save receipts, and review the month from one warm little wallet.</p>

@@ -55,7 +55,7 @@
       </nav>
 
       <main class="journal-layout">
-        <aside class="sidebar" aria-label="Summary and entry form">
+        <aside class="sidebar" aria-label="Summary">
           <section class="journal-card summary-card" aria-labelledby="summaryTitle">
             <div class="summary-heading">
               <h1 id="summaryTitle">June</h1>
@@ -72,10 +72,15 @@
             <div id="summaryBreakdown" class="summary-breakdown"></div>
           </section>
 
-          <section id="formCard" class="journal-card form-card" aria-labelledby="formTitle">
+          <section id="formCard" class="journal-card form-card" aria-labelledby="formTitle" aria-modal="true" aria-hidden="true" role="dialog" tabindex="-1">
             <div class="section-heading">
-              <span class="section-kicker">Journal Entry</span>
-              <h2 id="formTitle">Add Entry</h2>
+              <div>
+                <span class="section-kicker">Journal Entry</span>
+                <h2 id="formTitle">Add Entry</h2>
+              </div>
+              <button id="closeEntryPanelButton" class="panel-close-button" type="button" aria-label="Close entry panel">
+                <span aria-hidden="true">&times;</span>
+              </button>
             </div>
 
             <form id="expenseForm" novalidate>
@@ -160,7 +165,7 @@
               </div>
 
               <label class="search-box" for="filterTitle">
-                <span aria-hidden="true">⌕</span>
+                <span aria-hidden="true">&#8981;</span>
                 <input id="filterTitle" name="title" type="search" autocomplete="off" placeholder="search title" />
               </label>
 
@@ -182,6 +187,7 @@
       </main>
     </div>
 
+    <div id="entryPanelBackdrop" class="entry-panel-backdrop is-hidden" aria-hidden="true"></div>
     <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
     <section id="tourOverlay" class="tour-overlay is-hidden" aria-modal="true" role="dialog" aria-labelledby="tourTitle">
       <div class="tour-card">

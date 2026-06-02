@@ -29,6 +29,8 @@ const state = {
   ocrSuggestions: {},
   ocrLoading: false,
   loadingStartedAt: Date.now(),
+  entryPanelLastFocus: null,
+  tourLastFocus: null,
   tourStep: 0
 };
 
@@ -59,6 +61,7 @@ const els = {
   summaryYear: document.querySelector('#summaryYear'),
   summaryTotal: document.querySelector('#summaryTotal'),
   summaryBreakdown: document.querySelector('#summaryBreakdown'),
+  entryPanelBackdrop: document.querySelector('#entryPanelBackdrop'),
   formCard: document.querySelector('#formCard'),
   formTitle: document.querySelector('#formTitle'),
   expenseForm: document.querySelector('#expenseForm'),
@@ -71,6 +74,7 @@ const els = {
   scannedTextPanel: document.querySelector('#scannedTextPanel'),
   scannedTextOutput: document.querySelector('#scannedTextOutput'),
   copyScannedTextButton: document.querySelector('#copyScannedTextButton'),
+  closeEntryPanelButton: document.querySelector('#closeEntryPanelButton'),
   submitButton: document.querySelector('#submitButton'),
   cancelEditButton: document.querySelector('#cancelEditButton'),
   filtersForm: document.querySelector('#filtersForm'),
@@ -258,7 +262,7 @@ function extractAmount(text) {
   const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
   const priority = lines.find((line) => /total|amount due|grand total|net payable|balance/i.test(line) && /\d/.test(line));
   const candidates = (priority ? [priority] : lines).flatMap((line) => {
-    const matches = line.match(/(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?/gi) || [];
+    const matches = line.match(/(?:rs\.?|inr|\u20b9)?\s*[\d,]+(?:\.\d{1,2})?/gi) || [];
     return matches.map(parseAmountValue).filter((value) => Number.isFinite(value) && value > 0);
   });
 
@@ -506,7 +510,7 @@ function renderSummary(data) {
   const activeItems = data.breakdown.filter((item) => item.amount > 0);
 
   if (!activeItems.length) {
-    els.summaryBreakdown.innerHTML = '<div class="empty-summary">Nothing logged yet ✎</div>';
+    els.summaryBreakdown.innerHTML = '<div class="empty-summary">Nothing logged yet.</div>';
     return;
   }
 
@@ -539,6 +543,63 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+function getFocusableElements(container) {
+  return Array.from(container.querySelectorAll([
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])'
+  ].join(','))).filter((element) => element.offsetParent !== null || element === document.activeElement);
+}
+
+function trapFocus(event, container) {
+  if (event.key !== 'Tab') {
+    return;
+  }
+
+  const focusable = getFocusableElements(container);
+  if (!focusable.length) {
+    event.preventDefault();
+    container.focus();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function openEntryPanel() {
+  state.entryPanelLastFocus = document.activeElement;
+  els.formCard.inert = false;
+  document.body.classList.add('is-entry-panel-open');
+  els.entryPanelBackdrop.classList.remove('is-hidden');
+  els.formCard.setAttribute('aria-hidden', 'false');
+  window.setTimeout(() => {
+    els.expenseForm.elements.title.focus({ preventScroll: true });
+  }, 80);
+}
+
+function closeEntryPanel({ restoreFocus = true } = {}) {
+  document.body.classList.remove('is-entry-panel-open');
+  els.entryPanelBackdrop.classList.add('is-hidden');
+  els.formCard.setAttribute('aria-hidden', 'true');
+  els.formCard.inert = true;
+
+  if (restoreFocus && state.entryPanelLastFocus && document.contains(state.entryPanelLastFocus)) {
+    state.entryPanelLastFocus.focus({ preventScroll: true });
+  }
+}
+
 function enterEditMode(expense) {
   state.editingId = expense.id;
   els.formTitle.textContent = 'Update Entry';
@@ -559,7 +620,7 @@ function enterEditMode(expense) {
   renderOcrState();
 
   clearFormErrors();
-  els.formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  openEntryPanel();
   window.setTimeout(() => els.formCard.classList.remove('is-highlighted'), 850);
 }
 
@@ -574,6 +635,7 @@ function exitEditMode() {
   setFormCategory('');
   clearReceipt();
   clearFormErrors();
+  closeEntryPanel();
 }
 
 function jumpToAddEntry() {
@@ -582,10 +644,7 @@ function jumpToAddEntry() {
   }
 
   els.formCard.classList.add('is-highlighted');
-  els.formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  window.setTimeout(() => {
-    els.expenseForm.elements.title.focus({ preventScroll: true });
-  }, 420);
+  openEntryPanel();
   window.setTimeout(() => els.formCard.classList.remove('is-highlighted'), 850);
 }
 
@@ -732,6 +791,11 @@ function setSubmitLoading(isLoading) {
 function completeTour() {
   localStorage.setItem('expensoTourSeen', 'true');
   els.tourOverlay.classList.add('is-hidden');
+  document.body.classList.remove('is-tour-open');
+
+  if (state.tourLastFocus && document.contains(state.tourLastFocus)) {
+    state.tourLastFocus.focus({ preventScroll: true });
+  }
 }
 
 function renderTourStep() {
@@ -748,8 +812,11 @@ function maybeShowTour() {
   }
 
   state.tourStep = 0;
+  state.tourLastFocus = document.activeElement;
   renderTourStep();
   els.tourOverlay.classList.remove('is-hidden');
+  document.body.classList.add('is-tour-open');
+  window.setTimeout(() => els.tourNext.focus({ preventScroll: true }), 80);
 }
 
 function escapeHtml(value) {
@@ -833,6 +900,14 @@ els.copyScannedTextButton.addEventListener('click', () => {
 
 els.addEntryButton.addEventListener('click', jumpToAddEntry);
 
+els.closeEntryPanelButton.addEventListener('click', () => {
+  exitEditMode();
+});
+
+els.entryPanelBackdrop.addEventListener('click', () => {
+  exitEditMode();
+});
+
 els.filterCategoryPills.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-action="filter-category"]');
   if (!button) {
@@ -872,6 +947,7 @@ els.expenseForm.addEventListener('submit', async (event) => {
       clearReceipt();
       els.formCard.classList.add('is-success');
       window.setTimeout(() => els.formCard.classList.remove('is-success'), 550);
+      closeEntryPanel();
     }
 
     await refreshAll();
@@ -1010,6 +1086,29 @@ document.addEventListener('click', (event) => {
   }
 });
 
+document.addEventListener('keydown', (event) => {
+  if (!els.tourOverlay.classList.contains('is-hidden')) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      completeTour();
+      return;
+    }
+
+    trapFocus(event, els.tourOverlay);
+    return;
+  }
+
+  if (document.body.classList.contains('is-entry-panel-open')) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      exitEditMode();
+      return;
+    }
+
+    trapFocus(event, els.formCard);
+  }
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
   const now = new Date();
   els.currentDate.textContent = now.toLocaleDateString('en-IN', {
@@ -1019,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   els.currentDate.setAttribute('datetime', now.toISOString());
   els.expenseForm.elements.date.value = todayIso();
+  els.formCard.inert = true;
   renderCategoryPills(els.categoryPills, '', 'form');
   renderCategoryPills(els.filterCategoryPills, '', 'filter');
   renderReceiptPreview();

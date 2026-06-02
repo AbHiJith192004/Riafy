@@ -5,12 +5,13 @@
   --bg-input: #e9f4ec;
   --accent: #35d98b;
   --accent-hover: #18b974;
+  --brand: #128052;
   --gold: #9fdc9b;
   --olive: #5aa875;
   --brown: #1f4436;
   --text-primary: #10241d;
   --text-secondary: #526b60;
-  --text-muted: #8ba49a;
+  --text-muted: #5b7067;
   --border: #cae4d6;
   --success: #32b879;
   --danger: #dc5544;
@@ -54,6 +55,11 @@ body {
 }
 
 body:has(.loading-screen:not(.is-hidden)) {
+  overflow: hidden;
+}
+
+body.is-entry-panel-open,
+body.is-tour-open {
   overflow: hidden;
 }
 
@@ -409,7 +415,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
-  color: var(--accent);
+  color: var(--brand);
   font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -455,9 +461,9 @@ button {
 }
 
 .add-entry-button:hover {
-  background: var(--accent-hover);
+  background: var(--brand);
   color: #fffdf8;
-  box-shadow: 0 14px 34px rgba(24, 185, 116, 0.28);
+  box-shadow: 0 14px 34px rgba(18, 128, 82, 0.28);
   transform: translateY(-1px);
 }
 
@@ -496,8 +502,73 @@ button {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
+.entry-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(16, 36, 29, 0.48);
+  backdrop-filter: blur(6px);
+  opacity: 1;
+  transition: opacity 0.18s ease;
+}
+
+.entry-panel-backdrop.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.form-card {
+  position: fixed;
+  top: var(--space-5);
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 60;
+  width: min(460px, calc(100vw - 40px));
+  overflow: auto;
+  overscroll-behavior: contain;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(100% + var(--space-5)));
+  transition: opacity 0.18s ease, transform 0.22s ease;
+}
+
+body.is-entry-panel-open .form-card {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
 .section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
   margin-bottom: var(--space-5);
+}
+
+.panel-close-button {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 26px;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.panel-close-button:hover,
+.panel-close-button:focus-visible {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+.panel-close-button:active {
+  transform: translateY(1px);
 }
 
 .section-kicker,
@@ -570,6 +641,7 @@ h3 {
     radial-gradient(circle at 86% 18%, rgba(53, 217, 139, 0.38), transparent 6.5rem),
     radial-gradient(circle at 8% 105%, rgba(187, 246, 213, 0.24), transparent 8rem),
     linear-gradient(135deg, #10241d 0%, #1f4436 58%, #2fb779 100%);
+  background-color: #1f4436;
   color: #fffdf8;
   box-shadow:
     inset 0 0 0 1px rgba(245, 255, 249, 0.16),
@@ -1071,7 +1143,7 @@ textarea:focus {
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: var(--brand);
   color: #fffdf8;
 }
 
@@ -1282,7 +1354,7 @@ textarea:focus {
   border-radius: 999px;
   padding: 3px 9px;
   background: color-mix(in srgb, var(--category-color) 15%, transparent);
-  color: var(--category-color);
+  color: color-mix(in srgb, var(--category-color) 58%, var(--text-primary));
   font-size: 12px;
   font-weight: 700;
 }
@@ -1377,6 +1449,20 @@ textarea:focus {
 .icon-btn:hover {
   background: var(--border);
   color: var(--text-primary);
+}
+
+.btn:focus-visible,
+.category-pill:focus-visible,
+.receipt-picker:focus-visible,
+.receipt-remove:focus-visible,
+.suggestion-chip:focus-visible,
+.clear-link:focus-visible,
+.receipt-thumb:focus-visible,
+.icon-btn:focus-visible,
+.btn-filter:focus-visible,
+.tour-card button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  outline-offset: 3px;
 }
 
 .icon-btn.is-confirming {
@@ -1666,6 +1752,18 @@ textarea:focus {
   .app-shell {
     width: 100%;
     padding: 0 var(--space-4) var(--space-6);
+  }
+
+  .form-card {
+    top: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    width: calc(100vw - 24px);
+    transform: translateY(calc(100% + var(--space-3)));
+  }
+
+  body.is-entry-panel-open .form-card {
+    transform: translateY(0);
   }
 
   .top-nav {

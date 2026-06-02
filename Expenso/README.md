@@ -13,7 +13,7 @@ Open `http://localhost:3000` in your browser.
 
 ## UI Overview
 
-The app opens directly into a responsive dashboard. The top bar shows the Expenso brand and today's date. On desktop, the page uses a two-column layout: the left sidebar contains the current month summary and the add/edit expense form, while the right panel contains sticky filters and the expense list. On mobile, the layout stacks into one column and the filter bar becomes a collapsible panel.
+The app opens directly into a responsive dashboard. The top bar shows the Expenso brand, today's date, and a `+` action for opening the entry panel. On desktop, the page uses a two-column layout: the left sidebar contains the current month summary, while the right panel contains filters and the expense list. On mobile, the layout stacks into one column and the filter bar becomes a collapsible panel.
 
 The monthly summary card shows the current month total, a progress divider, and category rows with matching color dots, amounts, and proportion bars. Expense rows include a category dot, title, note, formatted date, category badge, amount, edit action, and inline delete confirmation.
 
@@ -21,24 +21,26 @@ The monthly summary card shows the current month total, a progress divider, and 
 
 ```text
 expense-tracker/
-├── server.js                 # Thin app entry point
-├── database.js               # Compatibility export for the SQLite connection
-├── src/
-│   ├── app.js                # Express app wiring
-│   ├── config/               # Shared constants such as categories
-│   ├── controllers/          # Request handlers and response shaping
-│   ├── db/                   # SQLite connection and schema setup
-│   ├── middleware/           # Request logging, 404, and error handling
-│   ├── repositories/         # Database queries
-│   ├── routes/               # API route definitions
-│   ├── utils/                # Logger, dates, async helpers
-│   └── validators/           # Payload, filter, and id validation
-├── public/
-│   ├── index.html
-│   ├── style.css
-│   └── app.js
-├── package.json
-└── README.md
+|-- server.js                 # Thin app entry point
+|-- database.js               # Compatibility export for the SQLite connection
+|-- src/
+|   |-- app.js                # Express app wiring
+|   |-- config/               # Shared constants such as categories
+|   |-- controllers/          # Request handlers and response shaping
+|   |-- db/                   # SQLite connection and schema setup
+|   |-- middleware/           # Request logging, 404, and error handling
+|   |-- repositories/         # Database queries
+|   |-- routes/               # API route definitions
+|   |-- utils/                # Logger, dates, async helpers
+|   `-- validators/           # Payload, filter, and id validation
+|-- public/
+|   |-- index.html
+|   |-- style.css
+|   |-- app.js
+|   `-- assets/
+|       `-- app-icon.png
+|-- package.json
+`-- README.md
 ```
 
 This keeps each responsibility in its own folder so new teammates can work on validation, database queries, API handlers, or middleware without digging through one large server file.
@@ -67,7 +69,7 @@ Example:
 - `better-sqlite3` keeps local persistence simple, fast, and synchronous for this small app.
 - Express provides a compact JSON API with clear REST endpoints.
 - Vanilla frontend code keeps the project dependency-light and easy to inspect.
-- The UI uses Inter from Google Fonts, CSS custom properties, Grid, Flexbox, and subtle transitions for a polished Notion/Linear-inspired dashboard.
+- The UI uses Google Fonts, CSS custom properties, Grid, Flexbox, and subtle transitions for a polished dashboard.
 - All mutations re-fetch expenses and summary so the database remains the single source of truth.
 
 ## API
@@ -90,8 +92,8 @@ Example:
 - Skippable first-run product tour for new users.
 - Responsive two-column desktop and single-column mobile UI.
 - Consistent category colors across badges, dots, bars, and borders.
-- Add, edit, cancel edit, delete with inline confirmation, filters, empty states, validation hints, and toast notifications.
-- Indian currency formatting such as `₹1,00,000.00`.
+- Add/edit entry panel, cancel edit, delete with inline confirmation, filters, empty states, validation hints, and toast notifications.
+- Indian currency formatting such as `INR 1,00,000.00` in supported browsers.
 
 ## What's Skipped
 

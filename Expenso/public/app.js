@@ -1,11 +1,11 @@
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
 const CATEGORY_COLORS = {
-  Food: '#E8956D',
-  Transport: '#6B9FD4',
-  Shopping: '#C47EB5',
-  Bills: '#D4826A',
-  Entertainment: '#8B7EC8',
-  Other: '#9CAF88'
+  Food: '#35D98B',
+  Transport: '#39A8C8',
+  Shopping: '#68BD75',
+  Bills: '#29966C',
+  Entertainment: '#6A8FD8',
+  Other: '#8FA58A'
 };
 
 const CATEGORY_ICONS = {
@@ -25,6 +25,10 @@ const state = {
   filterTimer: null,
   receiptImage: null,
   receiptName: '',
+  scannedText: '',
+  ocrSuggestions: {},
+  ocrLoading: false,
+  loadingStartedAt: Date.now(),
   tourStep: 0
 };
 
@@ -48,7 +52,9 @@ const TOUR_STEPS = [
 ];
 
 const els = {
+  loadingScreen: document.querySelector('#loadingScreen'),
   currentDate: document.querySelector('#currentDate'),
+  addEntryButton: document.querySelector('#addEntryButton'),
   summaryTitle: document.querySelector('#summaryTitle'),
   summaryYear: document.querySelector('#summaryYear'),
   summaryTotal: document.querySelector('#summaryTotal'),
@@ -60,6 +66,11 @@ const els = {
   categoryPills: document.querySelector('#categoryPills'),
   receiptInput: document.querySelector('#receiptImage'),
   receiptPreview: document.querySelector('#receiptPreview'),
+  ocrStatus: document.querySelector('#ocrStatus'),
+  ocrSuggestions: document.querySelector('#ocrSuggestions'),
+  scannedTextPanel: document.querySelector('#scannedTextPanel'),
+  scannedTextOutput: document.querySelector('#scannedTextOutput'),
+  copyScannedTextButton: document.querySelector('#copyScannedTextButton'),
   submitButton: document.querySelector('#submitButton'),
   cancelEditButton: document.querySelector('#cancelEditButton'),
   filtersForm: document.querySelector('#filtersForm'),
@@ -215,8 +226,165 @@ function renderReceiptPreview() {
 function clearReceipt() {
   state.receiptImage = null;
   state.receiptName = '';
+  state.scannedText = '';
+  state.ocrSuggestions = {};
+  state.ocrLoading = false;
   els.receiptInput.value = '';
   renderReceiptPreview();
+  renderOcrState();
+}
+
+function setOcrLoading(isLoading, message = '') {
+  state.ocrLoading = isLoading;
+  els.ocrStatus.classList.toggle('is-hidden', !isLoading && !message);
+  els.ocrStatus.classList.toggle('is-loading', isLoading);
+  els.ocrStatus.textContent = message;
+}
+
+function normalizeScannedText(text) {
+  return String(text || '')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function parseAmountValue(value) {
+  const cleaned = String(value || '').replace(/,/g, '').match(/\d+(?:\.\d{1,2})?/);
+  return cleaned ? Number(cleaned[0]) : null;
+}
+
+function extractAmount(text) {
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  const priority = lines.find((line) => /total|amount due|grand total|net payable|balance/i.test(line) && /\d/.test(line));
+  const candidates = (priority ? [priority] : lines).flatMap((line) => {
+    const matches = line.match(/(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?/gi) || [];
+    return matches.map(parseAmountValue).filter((value) => Number.isFinite(value) && value > 0);
+  });
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  return Math.max(...candidates);
+}
+
+function toIsoDate(day, month, year) {
+  const normalizedYear = Number(year) < 100 ? Number(`20${year}`) : Number(year);
+  const date = new Date(Date.UTC(Number(normalizedYear), Number(month) - 1, Number(day)));
+  if (
+    date.getUTCFullYear() !== Number(normalizedYear) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day)
+  ) {
+    return '';
+  }
+  return `${normalizedYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function extractDate(text) {
+  const numeric = text.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/);
+  if (numeric) {
+    return toIsoDate(numeric[1], numeric[2], numeric[3]);
+  }
+
+  const iso = text.match(/\b(20\d{2})[\/.-](\d{1,2})[\/.-](\d{1,2})\b/);
+  if (iso) {
+    return toIsoDate(iso[3], iso[2], iso[1]);
+  }
+
+  const monthNames = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+  };
+  const named = text.match(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(20\d{2}|\d{2})\b/i);
+  if (named) {
+    return toIsoDate(named[1], monthNames[named[2].slice(0, 3).toLowerCase()], named[3]);
+  }
+
+  return '';
+}
+
+function extractTitle(text) {
+  const ignored = /invoice|receipt|bill|tax|gst|date|time|total|amount|cash|card|upi|qty|price|subtotal/i;
+  const line = text
+    .split('\n')
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 3 && item.length <= 60)
+    .find((item) => !ignored.test(item) && /[a-z]/i.test(item));
+
+  return line || '';
+}
+
+function buildOcrSuggestions(text) {
+  const suggestions = {};
+  const amount = extractAmount(text);
+  const date = extractDate(text);
+  const title = extractTitle(text);
+
+  if (amount) {
+    suggestions.amount = amount;
+  }
+  if (date) {
+    suggestions.date = date;
+  }
+  if (title) {
+    suggestions.title = title;
+  }
+
+  return suggestions;
+}
+
+function renderOcrState() {
+  if (!state.scannedText) {
+    els.scannedTextPanel.classList.add('is-hidden');
+    els.scannedTextOutput.textContent = '';
+  } else {
+    els.scannedTextPanel.classList.remove('is-hidden');
+    els.scannedTextOutput.textContent = state.scannedText;
+  }
+
+  const chips = [];
+  if (state.ocrSuggestions.amount) {
+    chips.push(`<button class="suggestion-chip" type="button" data-action="use-suggestion" data-field="amount">Use amount ${formatCurrency(state.ocrSuggestions.amount)}</button>`);
+  }
+  if (state.ocrSuggestions.date) {
+    chips.push(`<button class="suggestion-chip" type="button" data-action="use-suggestion" data-field="date">Use date ${formatDate(state.ocrSuggestions.date)}</button>`);
+  }
+  if (state.ocrSuggestions.title) {
+    chips.push(`<button class="suggestion-chip" type="button" data-action="use-suggestion" data-field="title">Use title ${escapeHtml(state.ocrSuggestions.title)}</button>`);
+  }
+
+  els.ocrSuggestions.innerHTML = chips.join('');
+  els.ocrSuggestions.classList.toggle('is-hidden', chips.length === 0);
+}
+
+async function scanReceiptImage(imageData) {
+  if (!window.Tesseract || !imageData) {
+    setOcrLoading(false, 'Scanner unavailable. The bill image is still attached.');
+    return;
+  }
+
+  try {
+    setOcrLoading(true, 'Scanning bill...');
+    const result = await window.Tesseract.recognize(imageData, 'eng', {
+      logger(message) {
+        if (message.status === 'recognizing text' && Number.isFinite(message.progress)) {
+          const progress = Math.round(message.progress * 100);
+          setOcrLoading(true, `Scanning bill... ${progress}%`);
+        }
+      }
+    });
+    state.scannedText = normalizeScannedText(result.data.text);
+    state.ocrSuggestions = buildOcrSuggestions(state.scannedText);
+    setOcrLoading(false, state.scannedText ? 'Scan complete.' : 'No readable text found.');
+    renderOcrState();
+  } catch (error) {
+    state.scannedText = '';
+    state.ocrSuggestions = {};
+    renderOcrState();
+    setOcrLoading(false, 'Could not scan this image. Try a clearer photo.');
+  }
 }
 
 function renderCategoryPills(container, selectedValue = '', mode = 'form') {
@@ -308,6 +476,9 @@ function renderExpenseList(expenses) {
               Bill saved
             </button>
           ` : ''}
+          ${expense.scanned_text ? `
+            <span class="scan-badge">Text scanned</span>
+          ` : ''}
         </div>
         <div class="expense-side">
           <span class="expense-amount">${formatCurrency(expense.amount)}</span>
@@ -382,7 +553,10 @@ function enterEditMode(expense) {
   els.expenseForm.elements.note.value = expense.note || '';
   state.receiptImage = expense.receipt_image || null;
   state.receiptName = expense.receipt_image ? 'Saved bill image' : '';
+  state.scannedText = expense.scanned_text || '';
+  state.ocrSuggestions = state.scannedText ? buildOcrSuggestions(state.scannedText) : {};
   renderReceiptPreview();
+  renderOcrState();
 
   clearFormErrors();
   els.formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -400,6 +574,19 @@ function exitEditMode() {
   setFormCategory('');
   clearReceipt();
   clearFormErrors();
+}
+
+function jumpToAddEntry() {
+  if (state.editingId) {
+    exitEditMode();
+  }
+
+  els.formCard.classList.add('is-highlighted');
+  els.formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.setTimeout(() => {
+    els.expenseForm.elements.title.focus({ preventScroll: true });
+  }, 420);
+  window.setTimeout(() => els.formCard.classList.remove('is-highlighted'), 850);
 }
 
 function validateForm() {
@@ -434,7 +621,8 @@ function getFormData() {
     category: form.category.value,
     date: form.date.value || todayIso(),
     note: form.note.value.trim(),
-    receipt_image: state.receiptImage
+    receipt_image: state.receiptImage,
+    scanned_text: state.scannedText
   };
 }
 
@@ -514,6 +702,24 @@ async function refreshAll() {
   }
 }
 
+async function hideLoadingScreen() {
+  if (!els.loadingScreen || els.loadingScreen.classList.contains('is-hidden')) {
+    return;
+  }
+
+  const elapsed = Date.now() - state.loadingStartedAt;
+  const remaining = Math.max(0, 850 - elapsed);
+
+  if (remaining) {
+    await new Promise((resolve) => window.setTimeout(resolve, remaining));
+  }
+
+  els.loadingScreen.classList.add('is-leaving');
+  window.setTimeout(() => {
+    els.loadingScreen.classList.add('is-hidden');
+  }, 380);
+}
+
 function setSubmitLoading(isLoading) {
   els.submitButton.disabled = isLoading;
   if (isLoading) {
@@ -574,8 +780,11 @@ els.receiptInput.addEventListener('change', async () => {
   try {
     state.receiptImage = await compressImage(file);
     state.receiptName = file.name;
+    state.scannedText = '';
+    state.ocrSuggestions = {};
     renderReceiptPreview();
     showToast('Bill image attached.', 'success');
+    await scanReceiptImage(state.receiptImage);
   } catch (error) {
     clearReceipt();
     showToast(error.message || 'Could not attach image.', 'error');
@@ -588,6 +797,41 @@ els.receiptPreview.addEventListener('click', (event) => {
     showToast('Bill image removed.', 'info');
   }
 });
+
+els.ocrSuggestions.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-action="use-suggestion"]');
+  if (!button) {
+    return;
+  }
+
+  const field = button.dataset.field;
+  const form = els.expenseForm.elements;
+
+  if (field === 'amount') {
+    form.amount.value = state.ocrSuggestions.amount;
+  }
+  if (field === 'date') {
+    form.date.value = state.ocrSuggestions.date;
+  }
+  if (field === 'title') {
+    form.title.value = state.ocrSuggestions.title;
+  }
+
+  clearFormErrors();
+  showToast('Suggestion applied.', 'success');
+});
+
+els.copyScannedTextButton.addEventListener('click', () => {
+  if (!state.scannedText) {
+    return;
+  }
+
+  const note = els.expenseForm.elements.note;
+  note.value = note.value.trim() ? `${note.value.trim()}\n\n${state.scannedText}` : state.scannedText;
+  showToast('Scanned text copied to note.', 'success');
+});
+
+els.addEntryButton.addEventListener('click', jumpToAddEntry);
 
 els.filterCategoryPills.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-action="filter-category"]');
@@ -780,5 +1024,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderReceiptPreview();
   updateClearFiltersVisibility();
   await refreshAll();
+  await hideLoadingScreen();
   maybeShowTour();
 });

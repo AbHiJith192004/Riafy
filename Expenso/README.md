@@ -86,6 +86,7 @@ Example:
 - Clean modular backend folders for team collaboration.
 - Structured terminal logs for all API activity and important app events.
 - Optional camera/gallery bill image attachment for each expense.
+- Browser-side bill text scanning with Tesseract.js, scanned text storage, and autofill suggestions.
 - Skippable first-run product tour for new users.
 - Responsive two-column desktop and single-column mobile UI.
 - Consistent category colors across badges, dots, bars, and borders.

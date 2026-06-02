@@ -9,6 +9,7 @@ function normalizeExpensePayload(body = {}) {
   const date = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : todayIsoLocal();
   const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
   const receiptImage = typeof body.receipt_image === 'string' && body.receipt_image.trim() ? body.receipt_image.trim() : null;
+  const scannedText = typeof body.scanned_text === 'string' && body.scanned_text.trim() ? body.scanned_text.trim() : null;
 
   if (!title) {
     errors.title = 'Title is required.';
@@ -34,8 +35,12 @@ function normalizeExpensePayload(body = {}) {
     errors.receipt_image = 'Receipt image is too large. Please choose a smaller image.';
   }
 
+  if (scannedText && scannedText.length > 20000) {
+    errors.scanned_text = 'Scanned text is too long.';
+  }
+
   return {
-    data: { title, amount, category, date, note, receipt_image: receiptImage },
+    data: { title, amount, category, date, note, receipt_image: receiptImage, scanned_text: scannedText },
     errors
   };
 }

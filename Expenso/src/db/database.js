@@ -16,6 +16,7 @@ db.exec(`
     date TEXT NOT NULL DEFAULT (date('now', 'localtime')),
     note TEXT,
     receipt_image TEXT,
+    scanned_text TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
   );
 
@@ -25,12 +26,18 @@ db.exec(`
 `);
 
 const columns = db.prepare('PRAGMA table_info(expenses)').all();
-const hasReceiptImage = columns.some((column) => column.name === 'receipt_image');
+const migrations = [
+  { column: 'receipt_image', sql: 'ALTER TABLE expenses ADD COLUMN receipt_image TEXT' },
+  { column: 'scanned_text', sql: 'ALTER TABLE expenses ADD COLUMN scanned_text TEXT' }
+];
 
-if (!hasReceiptImage) {
-  db.prepare('ALTER TABLE expenses ADD COLUMN receipt_image TEXT').run();
-  logger.info('Database migrated', { migration: 'add receipt_image to expenses' });
-}
+migrations.forEach((migration) => {
+  const hasColumn = columns.some((column) => column.name === migration.column);
+  if (!hasColumn) {
+    db.prepare(migration.sql).run();
+    logger.info('Database migrated', { migration: `add ${migration.column} to expenses` });
+  }
+});
 
 logger.info('Database initialized', { path: dbPath, journalMode: 'WAL' });
 

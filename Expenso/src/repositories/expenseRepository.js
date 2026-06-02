@@ -1,7 +1,7 @@
 const db = require('../db/database');
 const { CATEGORIES } = require('../config/categories');
 
-const expenseFields = 'id, title, amount, category, date, note, receipt_image, created_at';
+const expenseFields = 'id, title, amount, category, date, note, receipt_image, scanned_text, created_at';
 
 function findAll(filters = {}) {
   const where = [];
@@ -47,8 +47,8 @@ function findById(id) {
 
 function create(data) {
   const result = db.prepare(`
-    INSERT INTO expenses (title, amount, category, date, note, receipt_image)
-    VALUES (@title, @amount, @category, @date, @note, @receipt_image)
+    INSERT INTO expenses (title, amount, category, date, note, receipt_image, scanned_text)
+    VALUES (@title, @amount, @category, @date, @note, @receipt_image, @scanned_text)
   `).run(data);
 
   return findById(result.lastInsertRowid);
@@ -62,7 +62,8 @@ function update(id, data) {
         category = @category,
         date = @date,
         note = @note,
-        receipt_image = @receipt_image
+        receipt_image = @receipt_image,
+        scanned_text = @scanned_text
     WHERE id = @id
   `).run({ ...data, id });
 

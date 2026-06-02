@@ -49,7 +49,9 @@ function createExpense(req, res) {
     amount: expense.amount,
     category: expense.category,
     date: expense.date,
-    hasReceipt: Boolean(expense.receipt_image)
+    hasReceipt: Boolean(expense.receipt_image),
+    hasScannedText: Boolean(expense.scanned_text),
+    scannedTextLength: expense.scanned_text ? expense.scanned_text.length : 0
   });
 
   return res.status(201).json({ expense });
@@ -79,7 +81,9 @@ function updateExpense(req, res) {
     amount: expense.amount,
     category: expense.category,
     date: expense.date,
-    hasReceipt: Boolean(expense.receipt_image)
+    hasReceipt: Boolean(expense.receipt_image),
+    hasScannedText: Boolean(expense.scanned_text),
+    scannedTextLength: expense.scanned_text ? expense.scanned_text.length : 0
   });
 
   return res.json({ expense });

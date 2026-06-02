@@ -13,13 +13,45 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <section id="loadingScreen" class="loading-screen" aria-label="Loading Expenso" aria-live="polite">
+      <div class="loading-card">
+        <div class="loading-art" aria-hidden="true">
+          <span class="money-note note-one"></span>
+          <span class="money-note note-two"></span>
+          <span class="money-coin coin-one"></span>
+          <span class="money-coin coin-two"></span>
+          <span class="scan-line"></span>
+          <div class="loading-person">
+            <span class="person-hair"></span>
+            <span class="person-head"></span>
+            <span class="person-neck"></span>
+            <span class="person-body"></span>
+            <span class="person-arm arm-left"></span>
+            <span class="person-arm arm-right"></span>
+            <span class="person-wallet"></span>
+          </div>
+        </div>
+        <div class="loading-copy">
+          <img src="assets/app-icon.png" alt="" />
+          <h1>Spending tracker</h1>
+          <p>Loading your conscious spending space</p>
+          <div class="loading-progress" aria-hidden="true"><span></span></div>
+        </div>
+      </div>
+    </section>
+
     <div class="app-shell">
       <nav class="top-nav" aria-label="App navigation">
         <a class="brand" href="/" aria-label="spent home">
           <img class="brand-icon" src="assets/app-icon.png" alt="" />
           <span>Expenso</span>
         </a>
-        <time id="currentDate" class="nav-date"></time>
+        <div class="nav-actions">
+          <time id="currentDate" class="nav-date"></time>
+          <button id="addEntryButton" class="add-entry-button" type="button" aria-label="Add new entry">
+            <span aria-hidden="true">+</span>
+          </button>
+        </div>
       </nav>
 
       <main class="journal-layout">
@@ -89,10 +121,17 @@
                     <span class="receipt-icon" aria-hidden="true"></span>
                     <span>
                       <strong>Add bill image</strong>
-                      <small>Camera or gallery</small>
+                      <small>Camera or gallery, then scan text</small>
                     </span>
                   </label>
                   <div id="receiptPreview" class="receipt-preview is-hidden"></div>
+                  <div id="ocrStatus" class="ocr-status is-hidden" role="status"></div>
+                  <div id="ocrSuggestions" class="ocr-suggestions is-hidden" aria-label="Scanned bill suggestions"></div>
+                  <details id="scannedTextPanel" class="scanned-text-panel is-hidden">
+                    <summary>Scanned text</summary>
+                    <pre id="scannedTextOutput"></pre>
+                    <button id="copyScannedTextButton" class="btn btn-text" type="button">Copy into note</button>
+                  </details>
                 </div>
                 <p class="field-error" data-error-for="receipt_image"></p>
               </div>
@@ -155,6 +194,7 @@
         </div>
       </div>
     </section>
+    <script src="https://unpkg.com/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

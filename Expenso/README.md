@@ -85,6 +85,8 @@ Example:
 - Current-month summary endpoint.
 - Clean modular backend folders for team collaboration.
 - Structured terminal logs for all API activity and important app events.
+- Optional camera/gallery bill image attachment for each expense.
+- Skippable first-run product tour for new users.
 - Responsive two-column desktop and single-column mobile UI.
 - Consistent category colors across badges, dots, bars, and borders.
 - Add, edit, cancel edit, delete with inline confirmation, filters, empty states, validation hints, and toast notifications.

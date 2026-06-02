@@ -22,8 +22,30 @@ const state = {
   activeFilters: {},
   editingId: null,
   pendingDeleteId: null,
-  filterTimer: null
+  filterTimer: null,
+  receiptImage: null,
+  receiptName: '',
+  tourStep: 0
 };
+
+const TOUR_STEPS = [
+  {
+    title: 'Welcome to Expenso',
+    text: 'Track daily spending, save receipts, and review the month from one warm little wallet.'
+  },
+  {
+    title: 'Add an entry',
+    text: 'Write a title, amount, date, category, and an optional note whenever money moves.'
+  },
+  {
+    title: 'Attach bills',
+    text: 'Use your camera or upload a bill image, then keep the receipt with that entry.'
+  },
+  {
+    title: 'Review your month',
+    text: 'The wallet card and category bars update after every add, edit, or delete.'
+  }
+];
 
 const els = {
   currentDate: document.querySelector('#currentDate'),
@@ -36,6 +58,8 @@ const els = {
   expenseForm: document.querySelector('#expenseForm'),
   categoryInput: document.querySelector('#category'),
   categoryPills: document.querySelector('#categoryPills'),
+  receiptInput: document.querySelector('#receiptImage'),
+  receiptPreview: document.querySelector('#receiptPreview'),
   submitButton: document.querySelector('#submitButton'),
   cancelEditButton: document.querySelector('#cancelEditButton'),
   filtersForm: document.querySelector('#filtersForm'),
@@ -46,7 +70,13 @@ const els = {
   clearFiltersButton: document.querySelector('#clearFiltersButton'),
   expenseList: document.querySelector('#expenseList'),
   expenseCount: document.querySelector('#expenseCount'),
-  toastRoot: document.querySelector('#toastRoot')
+  toastRoot: document.querySelector('#toastRoot'),
+  tourOverlay: document.querySelector('#tourOverlay'),
+  tourStepCount: document.querySelector('#tourStepCount'),
+  tourTitle: document.querySelector('#tourTitle'),
+  tourText: document.querySelector('#tourText'),
+  tourSkip: document.querySelector('#tourSkip'),
+  tourNext: document.querySelector('#tourNext')
 };
 
 const formatCurrency = (value) => Number(value || 0).toLocaleString('en-IN', {
@@ -139,6 +169,56 @@ async function deleteExpense(id) {
   });
 }
 
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Please choose an image file.'));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSide = 1200;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.76));
+      };
+      image.onerror = () => reject(new Error('Could not read that image.'));
+      image.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read that image.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderReceiptPreview() {
+  if (!state.receiptImage) {
+    els.receiptPreview.classList.add('is-hidden');
+    els.receiptPreview.innerHTML = '';
+    return;
+  }
+
+  els.receiptPreview.classList.remove('is-hidden');
+  els.receiptPreview.innerHTML = `
+    <img src="${state.receiptImage}" alt="Selected bill preview" />
+    <span title="${escapeHtml(state.receiptName || 'Attached bill')}">${escapeHtml(state.receiptName || 'Attached bill')}</span>
+    <button class="receipt-remove" type="button" data-action="remove-receipt">Remove</button>
+  `;
+}
+
+function clearReceipt() {
+  state.receiptImage = null;
+  state.receiptName = '';
+  els.receiptInput.value = '';
+  renderReceiptPreview();
+}
+
 function renderCategoryPills(container, selectedValue = '', mode = 'form') {
   container.innerHTML = CATEGORIES.map((category) => {
     const selected = selectedValue === category;
@@ -222,6 +302,12 @@ function renderExpenseList(expenses) {
             <span class="category-icon" aria-hidden="true">${CATEGORY_ICONS[expense.category]}</span>
             ${escapeHtml(expense.category)}
           </span>
+          ${expense.receipt_image ? `
+            <button class="receipt-thumb" type="button" data-action="view-receipt" data-id="${expense.id}">
+              <img src="${expense.receipt_image}" alt="" />
+              Bill saved
+            </button>
+          ` : ''}
         </div>
         <div class="expense-side">
           <span class="expense-amount">${formatCurrency(expense.amount)}</span>
@@ -294,6 +380,9 @@ function enterEditMode(expense) {
   setFormCategory(expense.category);
   els.expenseForm.elements.date.value = expense.date;
   els.expenseForm.elements.note.value = expense.note || '';
+  state.receiptImage = expense.receipt_image || null;
+  state.receiptName = expense.receipt_image ? 'Saved bill image' : '';
+  renderReceiptPreview();
 
   clearFormErrors();
   els.formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -309,6 +398,7 @@ function exitEditMode() {
   els.expenseForm.reset();
   els.expenseForm.elements.date.value = todayIso();
   setFormCategory('');
+  clearReceipt();
   clearFormErrors();
 }
 
@@ -343,7 +433,8 @@ function getFormData() {
     amount: Number(form.amount.value),
     category: form.category.value,
     date: form.date.value || todayIso(),
-    note: form.note.value.trim()
+    note: form.note.value.trim(),
+    receipt_image: state.receiptImage
   };
 }
 
@@ -432,6 +523,29 @@ function setSubmitLoading(isLoading) {
   els.submitButton.textContent = state.editingId ? 'Update Entry' : 'Add Entry';
 }
 
+function completeTour() {
+  localStorage.setItem('expensoTourSeen', 'true');
+  els.tourOverlay.classList.add('is-hidden');
+}
+
+function renderTourStep() {
+  const step = TOUR_STEPS[state.tourStep];
+  els.tourStepCount.textContent = `${state.tourStep + 1} of ${TOUR_STEPS.length}`;
+  els.tourTitle.textContent = step.title;
+  els.tourText.textContent = step.text;
+  els.tourNext.textContent = state.tourStep === TOUR_STEPS.length - 1 ? 'Start tracking' : 'Next';
+}
+
+function maybeShowTour() {
+  if (localStorage.getItem('expensoTourSeen') === 'true') {
+    return;
+  }
+
+  state.tourStep = 0;
+  renderTourStep();
+  els.tourOverlay.classList.remove('is-hidden');
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -449,6 +563,30 @@ els.categoryPills.addEventListener('click', (event) => {
 
   setFormCategory(button.dataset.category);
   clearFormErrors();
+});
+
+els.receiptInput.addEventListener('change', async () => {
+  const [file] = els.receiptInput.files;
+  if (!file) {
+    return;
+  }
+
+  try {
+    state.receiptImage = await compressImage(file);
+    state.receiptName = file.name;
+    renderReceiptPreview();
+    showToast('Bill image attached.', 'success');
+  } catch (error) {
+    clearReceipt();
+    showToast(error.message || 'Could not attach image.', 'error');
+  }
+});
+
+els.receiptPreview.addEventListener('click', (event) => {
+  if (event.target.closest('[data-action="remove-receipt"]')) {
+    clearReceipt();
+    showToast('Bill image removed.', 'info');
+  }
 });
 
 els.filterCategoryPills.addEventListener('click', async (event) => {
@@ -487,6 +625,7 @@ els.expenseForm.addEventListener('submit', async (event) => {
       els.expenseForm.reset();
       els.expenseForm.elements.date.value = todayIso();
       setFormCategory('');
+      clearReceipt();
       els.formCard.classList.add('is-success');
       window.setTimeout(() => els.formCard.classList.remove('is-success'), 550);
     }
@@ -566,6 +705,18 @@ els.expenseList.addEventListener('click', async (event) => {
     return;
   }
 
+  if (action === 'view-receipt') {
+    const image = expense.receipt_image;
+    if (image) {
+      const viewer = window.open('', '_blank', 'noopener,noreferrer');
+      if (viewer) {
+        viewer.document.write(`<title>Bill image</title><body style="margin:0;background:#10100f;display:grid;place-items:center;min-height:100vh;"><img src="${image}" alt="Bill image" style="max-width:96vw;max-height:96vh;border-radius:18px;"></body>`);
+        viewer.document.close();
+      }
+    }
+    return;
+  }
+
   if (action === 'delete') {
     if (state.pendingDeleteId !== id) {
       state.pendingDeleteId = id;
@@ -594,6 +745,18 @@ els.expenseList.addEventListener('click', async (event) => {
   }
 });
 
+els.tourSkip.addEventListener('click', completeTour);
+
+els.tourNext.addEventListener('click', () => {
+  if (state.tourStep >= TOUR_STEPS.length - 1) {
+    completeTour();
+    return;
+  }
+
+  state.tourStep += 1;
+  renderTourStep();
+});
+
 document.addEventListener('click', (event) => {
   if (!event.target.closest('[data-action="delete"]')) {
     if (state.pendingDeleteId !== null) {
@@ -614,6 +777,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   els.expenseForm.elements.date.value = todayIso();
   renderCategoryPills(els.categoryPills, '', 'form');
   renderCategoryPills(els.filterCategoryPills, '', 'filter');
+  renderReceiptPreview();
   updateClearFiltersVisibility();
   await refreshAll();
+  maybeShowTour();
 });
